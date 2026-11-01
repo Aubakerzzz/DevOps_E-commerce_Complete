@@ -1,0 +1,64 @@
+nameOverride: ""
+fullnameOverride: ""
+
+client:
+  replicaCount: 1
+  image:
+    repository: leyo-main-client
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 8080
+    targetPort: 5173
+    nodePort: 30080
+  containerPort: 5173
+  env:
+    VITE_API_URL: "http://localhost:5000"
+  resources: {}
+
+server:
+  replicaCount: 1
+  image:
+    repository: leyo-main-server
+    tag: latest
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5000
+    targetPort: 5000
+  containerPort: 5000
+  env:
+    PORT: "5000"
+    NODE_ENV: production
+  existingSecret: leyo-secrets
+  mongodbSecretKey: MONGODB_URI
+  resources: {}
+
+mongo:
+  enabled: true
+  image:
+    repository: mongo
+    tag: "7"
+    pullPolicy: IfNotPresent
+  containerPort: 27017
+  service:
+    type: ClusterIP
+    port: 27017
+  persistence:
+    enabled: true
+    size: 1Gi
+    mountPath: /data/db
+  healthcheck:
+    enabled: true
+    intervalSeconds: 5
+    timeoutSeconds: 5
+    retries: 10
+  resources: {}
+
+ingress:
+  enabled: false
+  className: ""
+  annotations: {}
+  host: leyo.local
+  tls: []

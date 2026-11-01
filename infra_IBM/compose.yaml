@@ -1,0 +1,14 @@
+services:
+  terraform:
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    working_dir: /workspace
+
+    volumes:
+      - .:/workspace
+      - ~/.ssh:/root/.ssh:ro
+
+    environment:
+      IC_API_KEY: ${IC_API_KEY:?Set IC_API_KEY first}

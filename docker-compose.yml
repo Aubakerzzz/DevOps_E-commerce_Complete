@@ -1,0 +1,69 @@
+# How to use this file:
+# 1. Install Docker on your host machine.
+# docker compose build
+# docker compose up -d
+
+services:
+  client:
+    build:
+      context: ./client
+      dockerfile: Dockerfile
+    container_name: leyo-client
+    ports:
+      - "8080:5173"
+    environment:
+      VITE_API_URL: http://localhost:5000
+    depends_on:
+      - server
+    restart: unless-stopped
+
+  server:
+    build:
+      context: ./server
+      dockerfile: Dockerfile
+    container_name: leyo-server
+    env_file:
+      - .env
+    environment:
+      PORT: 5000
+      MONGODB_URI: mongodb://mongo:27017/leyo
+    ports:
+      - "5000:5000"
+    depends_on:
+      mongo:
+        condition: service_healthy
+    restart: unless-stopped
+
+  mongo:
+    image: mongo:7
+    container_name: leyo-mongo
+    volumes:
+      - mongo_data:/data/db
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - --eval
+        - "db.adminCommand('ping').ok"
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  jenkins:
+    build:
+      context: ./jenkins
+      dockerfile: Dockerfile
+    container_name: leyo-jenkins
+    user: root
+    ports:
+      - "8081:8080"
+    volumes:
+      - jenkins_home:/var/jenkins_home
+      - /var/run/docker.sock:/var/run/docker.sock
+    restart: unless-stopped
+
+volumes:
+  mongo_data:
+  jenkins_home:

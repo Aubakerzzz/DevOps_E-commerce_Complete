@@ -1,0 +1,15 @@
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Deploy Application') {
+            steps {
+                sh '''
+                    echo "Deploying application..."
+                    # Add your deployment commands here
+                '''
+                }
+        }
+    }
+}

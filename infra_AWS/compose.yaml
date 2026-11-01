@@ -1,0 +1,21 @@
+services:
+  terraform:
+    # Build the image from the Dockerfile in this folder.
+    build:
+      context: .
+      dockerfile: Dockerfile
+
+    # Run Terraform from this mounted directory.
+    working_dir: /workspace
+
+    # Keep your Terraform files and state on your computer.
+    volumes:
+      - .:/workspace
+    
+    # Pass AWS credentials from your host environment.
+    environment:
+      AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:?Set AWS_ACCESS_KEY_ID first}
+      AWS_SECRET_ACCESS_KEY: ${AWS_SECRET_ACCESS_KEY:?Set AWS_SECRET_ACCESS_KEY first}
+      AWS_SESSION_TOKEN: ${AWS_SESSION_TOKEN:-}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      AWS_DEFAULT_REGION: ${AWS_REGION:-us-east-1}

@@ -1,0 +1,6 @@
+region          = "us-south"
+zone            = "us-south-1"
+project_name    = "leyo"
+ssh_public_key  = "ssh-rsa AAAAB3... YOUR_PUBLIC_KEY_HERE"
+admin_cidr      = "YOUR_PUBLIC_IPV4/32"
+profile         = "bx2-2x8"

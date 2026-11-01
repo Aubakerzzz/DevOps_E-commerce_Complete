@@ -1,0 +1,6 @@
+location            = "East US"
+project_name        = "leyo"
+admin_username      = "azureuser"
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+admin_cidr          = "YOUR_PUBLIC_IPV4/32"
+vm_size             = "Standard_B2s"

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ include "leyo.fullname" . }}-client
+  labels:
+    {{- include "leyo.labels" . | nindent 4 }}
+spec:
+  type: {{ .Values.client.service.type }}
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/component: client
+  ports:
+    - name: http
+      port: {{ .Values.client.service.port }}
+      targetPort: http
+      protocol: TCP

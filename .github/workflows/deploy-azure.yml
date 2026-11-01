@@ -1,0 +1,69 @@
+name: Deploy Leyo (Azure)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write   # Required for OIDC login to Azure
+
+concurrency:
+  group: leyo-deploy-azure
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      AZURE_RG: leyo-rg
+      AZURE_VM: leyo-vm
+      SSH_USER: azureuser
+
+    steps:
+      - name: Azure login (OIDC)
+        uses: azure/login@v2
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Push ephemeral SSH key to VM
+        run: |
+          set -euo pipefail
+          ssh-keygen -t ed25519 -f /tmp/azure_key -N ""
+          az vm user update \
+            --resource-group "$AZURE_RG" \
+            --name "$AZURE_VM" \
+            --username "$SSH_USER" \
+            --ssh-key-value "$(cat /tmp/azure_key.pub)"
+
+      - name: Deploy via SSH
+        env:
+          REPO_URL: https://github.com/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          IP=$(az vm show -d \
+            --resource-group "$AZURE_RG" \
+            --name "$AZURE_VM" \
+            --query publicIps --output tsv)
+
+          ssh -i /tmp/azure_key \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              "$SSH_USER@$IP" bash -s <<EOF
+          set -euo pipefail
+          command -v git    >/dev/null || sudo apt-get install -y git
+          command -v docker >/dev/null || (sudo apt-get update && sudo apt-get install -y docker.io docker-compose-v2)
+          sudo systemctl enable --now docker
+
+          rm -rf /tmp/leyo && git clone --depth 1 --branch main "$REPO_URL" /tmp/leyo
+          sudo mkdir -p /opt/leyo
+          sudo rsync -a --delete --exclude='.env' --exclude='.git' /tmp/leyo/ /opt/leyo/
+          rm -rf /tmp/leyo
+          cd /opt/leyo
+          sudo docker compose up -d --build
+          sudo docker compose ps
+          EOF

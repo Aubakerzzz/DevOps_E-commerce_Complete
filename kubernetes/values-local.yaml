@@ -1,0 +1,22 @@
+# Override these image names to match the images built and loaded into your local cluster.
+client:
+  image:
+    repository: leyo-client
+    tag: local
+    pullPolicy: IfNotPresent
+  service:
+    type: NodePort
+    port: 80
+
+server:
+  image:
+    repository: leyo-server
+    tag: local
+    pullPolicy: IfNotPresent
+  service:
+    type: ClusterIP
+    port: 5000
+  existingSecret: leyo-secrets
+
+ingress:
+  enabled: false

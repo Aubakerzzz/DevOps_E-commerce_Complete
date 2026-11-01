@@ -1,0 +1,71 @@
+name: Deploy Leyo (IBM)
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: leyo-deploy-ibm
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      IBM_REGION: us-south
+      IBM_INSTANCE_NAME: leyo-vm
+      SSH_USER: root   # IBM Cloud Ubuntu VPC images default to root
+
+    steps:
+      - name: Install IBM Cloud CLI
+        run: |
+          curl -fsSL https://clis.cloud.ibm.com/install/linux | sh
+          ibmcloud plugin install vpc-infrastructure -f
+
+      - name: Authenticate
+        env:
+          IC_API_KEY: ${{ secrets.IC_API_KEY }}
+        run: |
+          set -euo pipefail
+          ibmcloud login --apikey "$IC_API_KEY" -r "$IBM_REGION" -g Default -q
+          ibmcloud is target --gen 2
+
+      - name: Deploy via SSH
+        env:
+          REPO_URL: https://github.com/${{ github.repository }}.git
+        run: |
+          set -euo pipefail
+          IP=$(ibmcloud is instances --output json \
+            | jq -r --arg n "$IBM_INSTANCE_NAME" '.[] | select(.name==$n) | .primary_network_interface[0].primary_ipv4_address')
+
+          if [ -z "$IP" ] || [ "$IP" = "null" ]; then
+            echo "❌ Could not resolve instance IP"; exit 1
+          fi
+          echo "Target: $IP"
+
+          # Write deploy key
+          install -m 600 /dev/null /tmp/ibm_key
+          echo "${{ secrets.IBM_DEPLOY_SSH_KEY }}" > /tmp/ibm_key
+
+          ssh -i /tmp/ibm_key \
+              -o StrictHostKeyChecking=no \
+              -o UserKnownHostsFile=/dev/null \
+              "$SSH_USER@$IP" bash -s <<EOF
+          set -euo pipefail
+          command -v git    >/dev/null || apt-get install -y git
+          command -v docker >/dev/null || (apt-get update && apt-get install -y docker.io docker-compose-v2)
+          systemctl enable --now docker
+
+          rm -rf /tmp/leyo && git clone --depth 1 --branch main "$REPO_URL" /tmp/leyo
+          mkdir -p /opt/leyo
+          rsync -a --delete --exclude='.env' --exclude='.git' /tmp/leyo/ /opt/leyo/
+          rm -rf /tmp/leyo
+          cd /opt/leyo
+          docker compose up -d --build
+          docker compose ps
+          EOF
